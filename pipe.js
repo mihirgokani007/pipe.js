@@ -20,21 +20,33 @@ EXAMPLE:
     }, 1000);
   }
 
+  var get_resource = function(url, done) { 
+    fetch(url, function(result) {
+      done(null, result);
+    });
+  }
+
   var pipe = new Pipe();
   pipe
-    .enqueue(task_add, 10, 15)
-    .enqueue(task_sub, 40, 20)
-    .dequeue(function(err, result) { 
-      console.log('result', result);
+    .fill(task_add, 10, 15)
+    .fill(task_sub, 40, 20)
+    .fetch(function(err, result) { 
+      console.log('result', result); // -> (null, 25) 
     })
-    .dequeue(function(err, result) { 
-      console.log('result', result);
+    .fetch(function(err, result) { 
+      console.log('result', result); // -> (null, 20) 
+    });
+
+  pipe
+    .fill(get_resource, '1.json')
+    .fill(get_resource, '2.json')
+    .flush(function(err, result) { 
+      console.log('result', result); // -> {contents of 1.json}, {contents of 2.json}
     });
 
 **/
 
 (function() {
-  var g = this;
   var slice = [].slice;
 
   function Pipe(concurrency /*, tasks*/) {
@@ -84,6 +96,23 @@ EXAMPLE:
       var task = this._t.shift();
       // start task
       return this._run(task, done);
+    },
+
+    /**
+     * Helper function to dequeue all tasks from the tasks queue.
+     */
+    flush: function(cb, cxt) {
+      var done = {cb: cb, cxt: cxt || this};
+      var task;
+      // count manually
+      while (this._t.length > 0) {
+        // dequeue with same callback
+        task = this._t.shift();
+        this._run(task, done);
+      }
+
+      // chain
+      return this;
     },
 
     _run: function(task, done) {
