@@ -44,16 +44,10 @@
      */
     fill: function(fn) {
       var task = {fn: fn, args: slice.call(arguments, 1)};
-      // if any tasks already available in the queue
-      if (!this._w.length || this._r >= this._c) {
-        // append [fn + arguments] to tasks queue
-        this._t.push(task);
-        return this;
-      } 
-      // get done callback
-      var done = this._w.shift();
+      // append task to the tasks queue
+      this._t.push(task);
       // start task
-      return this._run(task, done);
+      return this._start();
     },
 
     /**
@@ -68,16 +62,10 @@
      */
     fetch: function(cb, cxt) {
       var done = {cb: cb, cxt: cxt || this};
-      // if any callbacks already waiting in the queue
-      if (!this._t.length || this._r >= this._c) {
-        // wait for availability of task in the queue
-        this._w.push(done);
-        return this; 
-      }
-      // get [fn + its arguments]
-      var task = this._t.shift();
+      // wait for availability of task in the queue
+      this._w.push(done);
       // start task
-      return this._run(task, done);
+      return this._start();
     },
 
     /**
@@ -89,15 +77,52 @@
      * If there are currently no tasks in the task queue, nothing will happen.
      */
     flush: function(cb, cxt) {
-      var done = {cb: cb, cxt: cxt || this};
-      var task;
-      // count manually
-      while (this._t.length > 0) {
+      // task queue length might not change with each dequeue and there might 
+      // already be some callbacks in the waiting queue (both are true due to 
+      // concurrency limit)
+      var pending = this._t.length - this._w.length;
+      // hence count manually
+      while (pending--) {
         // dequeue with same callback
-        task = this._t.shift();
-        this._run(task, done);
+        this.fetch(cb, cxt);
+        // note that we have to _start in each loop iteration (calling fetch() 
+        // does that) to run up to maximum number of tasks in parallel
       }
 
+      // chain
+      return this;
+    },
+
+    /**
+     * Helper function to reset the pipe.
+     * 
+     * If there are any running tasks still in the pipe, they will occupy some 
+     * concurrency limit, unless force is a truthy value. So if force is falsy 
+     * and any new tasks are enqueued, they will run in parallel up to maximum 
+     * concurrency limit.
+     */
+    reset: function(force) {
+      // empty out tasks queue and waiting queue
+      this._t.length = this._w.length = 0;
+      
+      // reset running count if force is truthy
+      if (force) { 
+        this._r = 0;
+      }
+      
+      // chain
+      return this;
+    },
+
+    _start: function() {
+      // (1) if any pending tasks in task queue and
+      // (2) there's a request to run the task and
+      // (3) not many tasks are already running
+      if (this._t.length && this._w.length && (this._r < this._c)) {
+        // run the next runnable task
+        this._run(this._t.shift(), this._w.shift());
+      }
+      
       // chain
       return this;
     },
@@ -110,18 +135,14 @@
       task.args.push(function(err, val) { 
         // task completed, decrement count
         --this._r;
-        // notify via done callback
-        done.cb.call(done.cxt, err, val)
-        // if any pending tasks in task queue and
-        // there's a request to run the task and
-        // not many tasks are already running
-        if (this._t.length && this._w.length && (this._r < this._c)) {
-          // reuse variables for next runnable task
-          task = this._t.shift();
-          done = this._w.shift();
-          // run the next runnable task
-          this._run(task, done);
-        }
+        // notify via done callback and check return value
+        if (done.cb.call(done.cxt, err, val) === false) {
+          // stop further processing if return value is boolean false (do not 
+          // force, let the running tasks complete)
+          this.reset();
+        } 
+        // start next runnable task
+        return this._start();
       }.bind(this));
 
       // call task function and wait for it to call done
