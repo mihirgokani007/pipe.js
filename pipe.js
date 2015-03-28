@@ -7,14 +7,15 @@
    * 
    * The `concurrency` is maximum number of tasks that can be executed 
    * simultaneously. By default there's no concurrency (concurrency == 1). 
-   * It can be set to Infinity to get maximum concurrency (a task gets run as 
+   * It can be set to `Infinity` to get maximum concurrency (a task gets run as 
    * soon as it is fetched). A falsy concurrency value (false, null, or 0) has 
    * same effect as concurrency value 1 (i.e. no concurrency).
    * 
    * Initial tasks can be specified as extra arguments. Each task is an object 
-   * having 2 keys:
-   * - `fn` a user function that actually does task
-   * - `args` arguments to pass to `fn` when calling
+   * having 3 keys:
+   * - `fn` a user function that actually does task (required)
+   * - `cxt` a context object to use when calling `fn` (optional)
+   * - `args` arguments to pass when calling `fn` (optional)
    */
   function Pipe(concurrency /*, tasks*/) {
     
@@ -41,9 +42,21 @@
      * If there are any fetch requests (callbacks) awaiting for the availability 
      * of tasks, one of the callbacks is dequeued and executed. Otherwise, the 
      * task is enqueued in the tasks queue for later fetch requests.
+     *
+     * Note that a task can be specified as an object having 3 keys: 
+     * - `fn` a user function that actually does task (required) 
+     * - `cxt` a context object to use when calling `fn` (optional) 
+     * - `args` arguments to pass when calling `fn` (optional)
+     *
+     * The task elements can also be specified individually; where the first 2
+     * arguments are `fn` and `cxt` respectively, and `args` can be specified
+     * as extra arguments after `cxt`. If you want to skip `cxt` but not `args`, 
+     * a `null` value can be provided (which follows the default behaviour of 
+     * using the global object as context). This makes `cxt` optional only if 
+     * `args` is skipped. 
      */
-    fill: function(fn) {
-      var task = {fn: fn, args: slice.call(arguments, 1)};
+    fill: function(fn, cxt) {
+      var task = (typeof fn === "object" && fn.fn) ? fn : {fn: fn, cxt: cxt, args: slice.call(arguments, 2)};
       // append task to the tasks queue
       this._t.push(task);
       // start task
@@ -61,7 +74,7 @@
      * tasks queue.
      */
     fetch: function(cb, cxt) {
-      var done = {cb: cb, cxt: cxt || this};
+      var done = (typeof cb === "object" && cb.cb) ? cb : {cb: cb, cxt: cxt};
       // wait for availability of task in the queue
       this._w.push(done);
       // start task
@@ -131,22 +144,22 @@
       // task is running, increment count
       ++this._r;
       
-      // add done callback to task args
-      task.args.push(function(err, val) { 
-        // task completed, decrement count
-        --this._r;
-        // notify via done callback and check return value
-        if (done.cb.call(done.cxt, err, val) === false) {
-          // stop further processing if return value is boolean false (do not 
-          // force, let the running tasks complete)
-          this.reset();
-        } 
-        // start next runnable task
-        return this._start();
-      }.bind(this));
-
       // call task function and wait for it to call done
-      task.fn.apply(null, task.args); 
+      task.fn.apply(task.cxt, task.args.concat([
+        // add done callback to task args (without modifying it)
+        function() { 
+          // task completed, decrement count
+          --this._r;
+          // notify via done callback and check return value
+          if (done.cb.apply(done.cxt, arguments) === false) {
+            // stop further processing if return value is boolean false (do not 
+            // force, let the running tasks complete)
+            this.reset();
+          } 
+          // start next runnable task
+          return this._start();
+        }.bind(this)
+      ])); 
       
       // chain
       return this;

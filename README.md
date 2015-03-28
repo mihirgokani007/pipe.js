@@ -1,16 +1,39 @@
-# DESCRIPTION
+# Pipe.js
   
-  Async tasks queue. 
+Pipe.js is an async task queuing helper library with following great features:
+
+* Small size micro library (<500b)
+* It is written in pure JavaScript
+* It doesn't have any dependencies
+* It can work with other libraries
+* It can run in browser and nodejs
+
+It is similar to [queue.js](mbostock/queue) but built with a different 
+philosophy in mind. 
+* In `queue.js` you fill up a queue with tasks and \*then\* await for them to 
+  complete one by one or together. By design, this only allows awaiting for 
+  tasks which are already added \[1\], but not for tasks which are dynamically 
+  added later. 
+* With `Pipe.js`, you *fill* a pipe from one end with tasks that 
+  asynchronously supply some results and *fetch* the results from the other 
+  end as they become available. The *fetch* requests are deferred if there are 
+  no tasks in the pipe, just like execution of tasks is deferred if there are 
+  no fetch requests. The pipe ensures that the order of tasks match with order 
+  of fetch requests (i.e. result of first added task is served to first fetch 
+  request, second to second, and so on). This allows dynamically adding tasks 
+  to the pipe while being assured about their execution order.
+
+  %%TODO: Illustration Image%%
 
 
-# USAGE
+### USAGE
 
   %% TODO: @include extract_comments('pipe.js') %%
 
 
-# EXAMPLE
+### EXAMPLE
 
-### Basic example:
+##### Basic example:
 
   ```javascript
   var task_add = function(argx, argy, done) { 
@@ -38,7 +61,7 @@
     });
   ```
 
-### Practical example:
+##### Practical example:
 
   ```javascript
   var get_resource = function(url, done) { 
