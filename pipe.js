@@ -150,14 +150,16 @@
         function() { 
           // task completed, decrement count
           --this._r;
-          // notify via done callback and check return value
-          if (done.cb.apply(done.cxt, arguments) === false) {
-            // stop further processing if return value is boolean false (do not 
-            // force, let the running tasks complete)
-            this.reset();
-          } 
-          // start next runnable task
-          return this._start();
+
+          // notify via done callback and wait for it to call next
+          done.cb.apply(done.cxt, slice.call(arguments).concat([
+            // add next callback to done args (without modifying it)
+            function() {
+              // start next runnable task
+              this._start();
+            }.bind(this)
+          ]));
+          
         }.bind(this)
       ])); 
       
