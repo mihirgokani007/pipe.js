@@ -148,13 +148,12 @@
       task.fn.apply(task.cxt, task.args.concat([
         // add done callback to task args (without modifying it)
         function() { 
-          // task completed, decrement count
-          --this._r;
-
           // notify via done callback and wait for it to call next
           done.cb.apply(done.cxt, slice.call(arguments).concat([
             // add next callback to done args (without modifying it)
             function() {
+              // task completed, decrement count
+              --this._r;
               // start next runnable task
               this._start();
             }.bind(this)
@@ -165,6 +164,19 @@
       
       // chain
       return this;
+    },
+
+    /**
+     * Helper function to get count of queued tasks or dequeue requests.
+     * 
+     * There are 2 different types of counts, number of tasks (fill requests) 
+     * and number of dequeues (fetch requests). If `alt` is true (which 
+     * activates an alternate mode), number of fetch requests are returned 
+     * instead of number of fill requests. If `excludeRunning` is true, 
+     * running tasks are ignored from the result (also relevant for alt-mode).
+     */
+    count: function(alt, excludeRunning) {
+      return (alt ? this._w.length : this._t.length) + (excludeRunning ? 0 : this._r);
     }
 
   };
