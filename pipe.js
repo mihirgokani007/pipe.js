@@ -145,11 +145,11 @@
       ++this._r;
       
       // call task function and wait for it to call done
-      task.fn.apply(task.cxt, task.args.concat([
+      task.fn.apply(task.cxt || this, task.args.concat([
         // add done callback to task args (without modifying it)
         function() { 
           // notify via done callback and wait for it to call next
-          done.cb.apply(done.cxt, slice.call(arguments).concat([
+          done.cb.apply(done.cxt || this, slice.call(arguments).concat([
             // add next callback to done args (without modifying it)
             function() {
               // task completed, decrement count
