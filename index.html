@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html>
+
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="description" content="Pipe.js : Micro (&lt; 500 bytes) helper library for queuing async tasks">
+
+    <link rel="stylesheet" type="text/css" media="screen" href="stylesheets/stylesheet.css">
+
+    <title>Pipe.js</title>
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          <a id="forkme_banner" href="https://github.com/mihirgokani007/pipe.js">View on GitHub</a>
+
+          <h1 id="project_title">Pipe.js</h1>
+          <h2 id="project_tagline">Micro (&lt; 500 bytes) helper library for queuing async tasks</h2>
+
+            <section id="downloads">
+              <a class="zip_download_link" href="https://github.com/mihirgokani007/pipe.js/zipball/master">Download this project as a .zip file</a>
+              <a class="tar_download_link" href="https://github.com/mihirgokani007/pipe.js/tarball/master">Download this project as a tar.gz file</a>
+            </section>
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1>
+<a id="pipejs" class="anchor" href="#pipejs" aria-hidden="true"><span class="octicon octicon-link"></span></a>Pipe.js</h1>
+
+<p>Pipe.js is an async task queuing helper library with following great features:</p>
+
+<ul>
+<li>Small size micro library (&lt;500b)</li>
+<li>It is written in pure JavaScript</li>
+<li>It doesn't have any dependencies</li>
+<li>It can work with other libraries</li>
+<li>It can run in browser and nodejs</li>
+</ul>
+
+<p>It is similar to <a href="mbostock/queue">queue.js</a> but built with a different 
+philosophy in mind. </p>
+
+<ul>
+<li>In <code>queue.js</code> you fill up a queue with tasks and *then* await for them to 
+complete one by one or together. By design, this only allows awaiting for 
+tasks which are already added [1], but not for tasks which are dynamically 
+added later. </li>
+<li>
+<p>With <code>Pipe.js</code>, you <em>fill</em> a pipe from one end with tasks that 
+asynchronously supply some results and <em>fetch</em> the results from the other 
+end as they become available. The <em>fetch</em> requests are deferred if there are 
+no tasks in the pipe, just like execution of tasks is deferred if there are 
+no fetch requests. The pipe ensures that the order of tasks match with order 
+of fetch requests (i.e. result of first added task is served to first fetch 
+request, second to second, and so on). This allows dynamically adding tasks 
+to the pipe while being assured about their execution order.</p>
+
+<p>%%TODO: Illustration Image%%</p>
+</li>
+</ul>
+
+<h3>
+<a id="usage" class="anchor" href="#usage" aria-hidden="true"><span class="octicon octicon-link"></span></a>USAGE</h3>
+
+<p>%% TODO: <a href="https://github.com/include" class="user-mention">@include</a> extract_comments('pipe.js') %%</p>
+
+<h3>
+<a id="example" class="anchor" href="#example" aria-hidden="true"><span class="octicon octicon-link"></span></a>EXAMPLE</h3>
+
+<h5>
+<a id="basic-example" class="anchor" href="#basic-example" aria-hidden="true"><span class="octicon octicon-link"></span></a>Basic example:</h5>
+
+<div class="highlight highlight-javascript"><pre>  <span class="pl-k">var</span> <span class="pl-en">task_add</span> <span class="pl-k">=</span> <span class="pl-k">function</span>(<span class="pl-smi">argx</span>, <span class="pl-smi">argy</span>, <span class="pl-smi">done</span>) { 
+    <span class="pl-c1">setTimeout</span>(<span class="pl-k">function</span>() {
+      <span class="pl-en">console</span><span class="pl-c1">.log</span>(<span class="pl-s"><span class="pl-pds">'</span>add complete!<span class="pl-pds">'</span></span>, argx, argy); 
+      done(<span class="pl-c1">null</span>, argx <span class="pl-k">+</span> argy);
+    }, <span class="pl-c1">5000</span>);
+  }
+  <span class="pl-k">var</span> <span class="pl-en">task_sub</span> <span class="pl-k">=</span> <span class="pl-k">function</span>(<span class="pl-smi">argx</span>, <span class="pl-smi">argy</span>, <span class="pl-smi">done</span>) { 
+    <span class="pl-c1">setTimeout</span>(<span class="pl-k">function</span>() {
+      <span class="pl-en">console</span><span class="pl-c1">.log</span>(<span class="pl-s"><span class="pl-pds">'</span>sub complete!<span class="pl-pds">'</span></span>, argx, argy); 
+      done(<span class="pl-c1">null</span>, argx <span class="pl-k">-</span> argy);
+    }, <span class="pl-c1">1000</span>);
+  }
+
+  <span class="pl-k">var</span> pipe <span class="pl-k">=</span> <span class="pl-k">new</span> <span class="pl-en">Pipe</span>();
+  pipe
+    .fill(task_add, <span class="pl-c1">10</span>, <span class="pl-c1">15</span>)
+    .fill(task_sub, <span class="pl-c1">40</span>, <span class="pl-c1">20</span>)
+    .fetch(<span class="pl-k">function</span>(<span class="pl-smi">err</span>, <span class="pl-smi">result</span>) { 
+      <span class="pl-en">console</span><span class="pl-c1">.log</span>(<span class="pl-s"><span class="pl-pds">'</span>result<span class="pl-pds">'</span></span>, result); <span class="pl-c">// -&gt; (null, 25) </span>
+    })
+    .fetch(<span class="pl-k">function</span>(<span class="pl-smi">err</span>, <span class="pl-smi">result</span>) { 
+      <span class="pl-en">console</span><span class="pl-c1">.log</span>(<span class="pl-s"><span class="pl-pds">'</span>result<span class="pl-pds">'</span></span>, result); <span class="pl-c">// -&gt; (null, 20) </span>
+    });</pre></div>
+
+<h5>
+<a id="practical-example" class="anchor" href="#practical-example" aria-hidden="true"><span class="octicon octicon-link"></span></a>Practical example:</h5>
+
+<div class="highlight highlight-javascript"><pre>  <span class="pl-k">var</span> <span class="pl-en">get_resource</span> <span class="pl-k">=</span> <span class="pl-k">function</span>(<span class="pl-smi">url</span>, <span class="pl-smi">done</span>) { 
+    fetch(url, <span class="pl-k">function</span>(<span class="pl-smi">err</span>, <span class="pl-smi">result</span>) {
+      done(err, result);
+    });
+  }
+
+  pipe
+    .fill(get_resource, <span class="pl-s"><span class="pl-pds">'</span>1.json<span class="pl-pds">'</span></span>)
+    .fill(get_resource, <span class="pl-s"><span class="pl-pds">'</span>2.json<span class="pl-pds">'</span></span>)
+    .flush(<span class="pl-k">function</span>(<span class="pl-smi">err</span>, <span class="pl-smi">result</span>) { 
+      <span class="pl-k">if</span> (err) {
+        <span class="pl-en">console</span><span class="pl-c1">.error</span>(err);
+        <span class="pl-k">return</span>;
+      }
+      <span class="pl-en">console</span><span class="pl-c1">.log</span>(<span class="pl-s"><span class="pl-pds">'</span>result<span class="pl-pds">'</span></span>, result); <span class="pl-c">// -&gt; {contents of *.json}</span>
+    });</pre></div>
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        <p class="copyright">Pipe.js maintained by <a href="https://github.com/mihirgokani007">mihirgokani007</a></p>
+        <p>Published with <a href="https://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+
+              <script type="text/javascript">
+            var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+            document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+          </script>
+          <script type="text/javascript">
+            try {
+              var pageTracker = _gat._getTracker("UA-29295279-3");
+            pageTracker._trackPageview();
+            } catch(err) {}
+          </script>
+
+
+  </body>
+</html>
