@@ -1,19 +1,19 @@
 type Task = {
   fn: Function;  // Function to execute the task
-  context?: any;  // Context (this) to use when calling the task function
+  context?: any;  // Context (`this`) to use when calling the task function
   args?: any[];   // Arguments to pass to the task function
 };
 
 type DoneCallback = {
   callback: Function;  // Callback function to execute when the task is complete
-  context?: any;       // Context (this) to use when calling the callback function
+  context?: any;       // Context (`this`) to use when calling the callback function
 };
 
 class TaskQueue {
-  private maxConcurrentTasks: number;  // Maximum number of tasks that can run concurrently
-  private pendingTasks: Task[];        // Queue of tasks that are yet to be processed
-  private waitingCallbacks: DoneCallback[]; // Queue of callbacks waiting for tasks to finish
-  private activeTaskCount: number;     // Number of tasks currently running
+  private _maxConcurrentTasks: number;  // Maximum number of tasks that can run concurrently
+  private _pendingTasks: Task[];        // Queue of tasks that are yet to be processed
+  private _waitingCallbacks: DoneCallback[]; // Queue of callbacks waiting for tasks to finish
+  private _activeTaskCount: number;     // Number of tasks currently running
 
   /**
    * Create a new TaskQueue instance with optional concurrency and initial tasks.
@@ -21,10 +21,10 @@ class TaskQueue {
    * @param initialTasks - Optional tasks to enqueue initially.
    */
   constructor(concurrency: number = 1, ...initialTasks: Task[]) {
-    this.maxConcurrentTasks = concurrency || 1;
-    this.pendingTasks = initialTasks;   // Initialize with the provided tasks
-    this.waitingCallbacks = [];         // No callbacks waiting initially
-    this.activeTaskCount = 0;           // No tasks running initially
+    this._maxConcurrentTasks = concurrency || 1;
+    this._pendingTasks = initialTasks;   // Initialize with the provided tasks
+    this._waitingCallbacks = [];         // No callbacks waiting initially
+    this._activeTaskCount = 0;           // No tasks running initially
   }
 
   /**
@@ -39,7 +39,7 @@ class TaskQueue {
       ? fn as Task 
       : { fn, context, args };
 
-    this.pendingTasks.push(task);  // Add the new task to the queue
+    this._pendingTasks.push(task);  // Add the new task to the queue
 
     return this._processNextTask();  // Attempt to start processing tasks
   }
@@ -55,7 +55,7 @@ class TaskQueue {
       ? callback as DoneCallback
       : { callback, context };
 
-    this.waitingCallbacks.push(doneCallback);  // Add the callback to the waiting queue
+    this._waitingCallbacks.push(doneCallback);  // Add the callback to the waiting queue
 
     return this._processNextTask();  // Attempt to start processing tasks
   }
@@ -67,7 +67,7 @@ class TaskQueue {
    * @returns The current TaskQueue instance for chaining.
    */
   flush(callback: Function, context?: any): TaskQueue {
-    let remainingTasks = this.pendingTasks.length - this.waitingCallbacks.length;
+    let remainingTasks = this._pendingTasks.length - this._waitingCallbacks.length;
     
     // Process remaining tasks in the queue
     while (remainingTasks--) {
@@ -84,10 +84,10 @@ class TaskQueue {
    * @returns The current TaskQueue instance for chaining.
    */
   reset(forceReset?: boolean): TaskQueue {
-    this.pendingTasks.length = this.waitingCallbacks.length = 0;  // Clear both queues
+    this._pendingTasks.length = this._waitingCallbacks.length = 0;  // Clear both queues
 
     if (forceReset) {
-      this.activeTaskCount = 0;  // Optionally reset the active task count
+      this._activeTaskCount = 0;  // Optionally reset the active task count
     }
 
     return this;  // Return the current instance to allow chaining
@@ -99,9 +99,9 @@ class TaskQueue {
    */
   private _processNextTask(): TaskQueue {
     // If there are pending tasks and waiting callbacks, and the concurrency limit allows:
-    if (this.pendingTasks.length && this.waitingCallbacks.length && (this.activeTaskCount < this.maxConcurrentTasks)) {
+    if (this._pendingTasks.length && this._waitingCallbacks.length && (this._activeTaskCount < this._maxConcurrentTasks)) {
       // Process the next task from the pending tasks queue
-      this._executeTask(this.pendingTasks.shift()!, this.waitingCallbacks.shift()!);
+      this._executeTask(this._pendingTasks.shift()!, this._waitingCallbacks.shift()!);
     }
 
     return this;  // Return the current instance to allow chaining
@@ -114,7 +114,7 @@ class TaskQueue {
    * @returns The current TaskQueue instance for chaining.
    */
   private _executeTask(task: Task, doneCallback: DoneCallback): TaskQueue {
-    this.activeTaskCount++;  // Increment the count of active tasks
+    this._activeTaskCount++;  // Increment the count of active tasks
 
     // Execute the task function and ensure to call the done callback when it's finished
     task.fn.apply(task.context || this, task.args?.concat([
@@ -123,7 +123,7 @@ class TaskQueue {
         doneCallback.callback.apply(doneCallback.context || this, resultArgs.concat([
           // After task completion, decrement the active task count and process the next task
           () => {
-            this.activeTaskCount--;  // Decrement the active task count
+            this._activeTaskCount--;  // Decrement the active task count
             this._processNextTask();  // Process the next task if available
           }
         ]));
@@ -141,7 +141,7 @@ class TaskQueue {
    */
   count(alt: boolean = false, excludeRunning: boolean = false): number {
     // Return the count of either pending tasks or waiting callbacks, adjusted for active tasks if needed
-    return (alt ? this.waitingCallbacks.length : this.pendingTasks.length) + (excludeRunning ? 0 : this.activeTaskCount);
+    return (alt ? this._waitingCallbacks.length : this._pendingTasks.length) + (excludeRunning ? 0 : this._activeTaskCount);
   }
 }
 
